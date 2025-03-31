@@ -3,38 +3,90 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ $deploymentName }}
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: main
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      service: {{ $deploymentName }}
+      app.kubernetes.io/name: {{ .Release.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: main
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        service: {{ $deploymentName }}
+        app.kubernetes.io/name: {{ .Release.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: main
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
       restartPolicy: Always
       containers:
         - name: main
-          image: n8nio/n8n:{{ .Values.n8n.imageTag }}
+          image: "n8nio/n8n:{{ .Values.n8n.imageTag }}"
+          imagePullPolicy: IfNotPresent
           args: ["start"]
           envFrom:
-          - configMapRef:
-              name: n8n-configmap-env
+            - configMapRef:
+                name: n8n-configmap-env
+            {{- if eq .Values.n8n.deploymentMode "scale" }}
+            - secretRef:
+                name: n8n-db-secrets
+            {{- end }}
+          ports:
+            - containerPort: 5678
+              name: http
           resources:
+            requests:
+              cpu: {{ .Values.resources.cpuRequest | default "100m" }}
+              memory: {{ .Values.resources.memoryRequest | default "256Mi" }}
             limits:
+              cpu: {{ .Values.resources.cpuLimit | default "500m" }}
               memory: {{ .Values.resources.memoryLimit }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: {{ $deploymentName }}
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: main
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
   type: ClusterIP
   selector:
-    service: {{ $deploymentName }}
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: main
   ports:
     - port: 5678
+      targetPort: http
+      name: http

@@ -3,39 +3,61 @@ kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: postgresql-storage
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: postgres
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    helm.sh/resource-policy: keep
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
       storage: {{ .Values.n8n.storageSize }}
+  {{- if .Values.n8n.storageClass }}
+  storageClassName: {{ .Values.n8n.storageClass }}
+  {{- end }}
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: postgres
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: postgres
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      service: postgres
+      app.kubernetes.io/name: {{ .Release.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: postgres
   strategy:
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 1
-    type: RollingUpdate
+    type: Recreate
   template:
     metadata:
       labels:
-        service: postgres
+        app.kubernetes.io/name: {{ .Release.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: postgres
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        fsGroup: 999
       restartPolicy: Always
       containers:
         - image: postgres:13-alpine
           name: postgres
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5432
+              name: postgres
           volumeMounts:
             - name: postgresql-storage
               mountPath: /var/lib/postgresql/data
@@ -43,11 +65,43 @@ spec:
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
             - name: POSTGRES_DB
-              value: {{ .Values.n8n.db.name }}
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-db-secrets
+                  key: DB_POSTGRESDB_DATABASE
             - name: POSTGRES_USER
-              value: {{ .Values.n8n.db.user }}
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-db-secrets
+                  key: DB_POSTGRESDB_USER
             - name: POSTGRES_PASSWORD
-              value: {{ .Values.n8n.db.password }}
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-db-secrets
+                  key: DB_POSTGRESDB_PASSWORD
+          resources:
+            requests:
+              cpu: {{ .Values.postgres.resources.cpuRequest | default "100m" }}
+              memory: {{ .Values.postgres.resources.memoryRequest | default "256Mi" }}
+            limits:
+              cpu: {{ .Values.postgres.resources.cpuLimit | default "500m" }}
+              memory: {{ .Values.postgres.resources.memoryLimit | default "512Mi" }}
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -U
+                - postgres
+            initialDelaySeconds: 5
+            periodSeconds: 5
       volumes:
         - name: postgresql-storage
           persistentVolumeClaim:
@@ -58,10 +112,19 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: postgres
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
-  clusterIP: None
+  type: ClusterIP
   ports:
     - port: 5432
+      targetPort: postgres
+      name: postgres
   selector:
-    service: postgres
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: postgres
 {{- end }}

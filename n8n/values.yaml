@@ -1,14 +1,81 @@
 n8n:
-  imageTag: latest
-  baseDomainName: aws.8n8.io
-  encryptionKey: change-this
-  deploymentMode: scale # single or scale
-  storageSize: 10Gi
+  deploymentMode: "scale"  # "simple" or "scale"
+  imageTag: "latest"
+  baseDomainName: "example.com"
+  encryptionKey: "change-me"
+  storageSize: "10Gi"
+  storageClass: ""
+  concurrency: 5
+  tls:
+    enabled: true
+    secretName: ""
   db:
-    name: n8n
-    user: n8n
-    password: change-this
-  concurrency: 20
+    name: "n8n"
+    user: "n8n"
+    password: "change-me-please"
+  webhook:
+    minReplicas: 8
+    maxReplicas: 16
+    autoscaling:
+      enabled: true
+      minReplicas: 8
+      maxReplicas: 16
+      targetCPUUtilizationPercentage: 70
+      # targetMemoryUtilizationPercentage: 80
+      # additionalMetrics: []
+
+  worker:
+    minReplicas: 8
+    maxReplicas: 16
+    autoscaling:
+      enabled: true
+      minReplicas: 8
+      maxReplicas: 16
+      targetCPUUtilizationPercentage: 70
+      # targetMemoryUtilizationPercentage: 80
+      # additionalMetrics: []
 
 resources:
-  memoryLimit: 1Gi
+  cpuRequest: "500m"
+  memoryRequest: "512Mi"
+  cpuLimit: "500m"
+  memoryLimit: "512Mi"
+
+postgres:
+  resources:
+    cpuRequest: "500m"
+    memoryRequest: "512Mi"
+    cpuLimit: "500m"
+    memoryLimit: "512Mi"
+
+redis:
+  resources:
+    cpuRequest: "500m"
+    memoryRequest: "512Mi"
+    cpuLimit: "500m"
+    memoryLimit: "512Mi"
+
+
+ingress:
+  enabled: true
+  ingressClassName: "nginx"  # or "alb"
+  annotations: {}
+    # for nginx ingress controller
+    # nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    # nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # nginx.ingress.kubernetes.io/configuration-snippet: |
+    #   more_clear_headers "Server";
+    #   more_set_headers "X-Frame-Options: SAMEORIGIN";
+    #   proxy_set_header Accept-Encoding "";
+    
+    # for AWS ALB ingress controller
+    # kubernetes.io/ingress.class: alb
+    # alb.ingress.kubernetes.io/scheme: internet-facing
+    # alb.ingress.kubernetes.io/target-type: ip
+    # alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    # alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600
+  
+  tls: []
+    # - hosts:
+    #     - chart-example.local
+    #   secretName: chart-example-tls

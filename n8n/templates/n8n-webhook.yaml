@@ -39,4 +39,5 @@ spec:
     service: {{ $deploymentName }}
   ports:
     - port: 5678
+      targetPort: http
 {{- end }}

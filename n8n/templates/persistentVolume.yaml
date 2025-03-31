@@ -3,10 +3,19 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: n8n-storage
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    helm.sh/resource-policy: keep
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
       storage: {{ .Values.n8n.storageSize }}
+  {{- if .Values.n8n.storageClass }}
+  storageClassName: {{ .Values.n8n.storageClass }}
+  {{- end }}
 {{- end }}

@@ -1,0 +1,80 @@
+{{- if eq .Values.n8n.deploymentMode "scale" }}
+{{- if .Values.n8n.webhook.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: n8n-webhook-hpa
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: webhook
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: n8n-webhook
+  minReplicas: {{ .Values.n8n.webhook.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.n8n.webhook.autoscaling.maxReplicas }}
+  metrics:
+    {{- if .Values.n8n.webhook.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.n8n.webhook.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.n8n.webhook.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.n8n.webhook.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.n8n.webhook.autoscaling.additionalMetrics }}
+    {{- toYaml .Values.n8n.webhook.autoscaling.additionalMetrics | nindent 4 }}
+    {{- end }}
+{{- end }}
+
+{{- if .Values.n8n.worker.autoscaling.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: n8n-worker-hpa
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: worker
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: n8n-worker
+  minReplicas: {{ .Values.n8n.worker.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.n8n.worker.autoscaling.maxReplicas }}
+  metrics:
+    {{- if .Values.n8n.worker.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.n8n.worker.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.n8n.worker.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.n8n.worker.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.n8n.worker.autoscaling.additionalMetrics }}
+    {{- toYaml .Values.n8n.worker.autoscaling.additionalMetrics | nindent 4 }}
+    {{- end }}
+{{- end }}
+{{- end }}

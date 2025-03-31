@@ -1,0 +1,20 @@
+Thank you for installing {{ .Chart.Name }}.
+
+Your n8n instance is now being deployed to your cluster.
+
+{{- if eq .Values.n8n.deploymentMode "scale" }}
+You have deployed n8n in scalable mode with separate main, webhook, and worker components.
+{{- else }}
+You have deployed n8n in simple mode with a single instance.
+{{- end }}
+
+You can access your n8n instance at:
+  https://{{ .Release.Name }}.{{ .Values.n8n.baseDomainName }}
+
+{{- if eq .Values.n8n.encryptionKey "change-me" }}
+WARNING: You are using the default encryption key. Please change it immediately!
+{{- end }}
+
+{{- if eq .Values.n8n.db.password "change-me-please" }}
+WARNING: You are using the default database password. Please change it immediately!
+{{- end }}
